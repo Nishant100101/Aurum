@@ -1,0 +1,120 @@
+{% import "components/expense_row.html" as expense_row %}
+{% import "components/expense_sheet.html" as expense_sheet %}
+<header class="app-header">
+    <p class="app-eyebrow">Expense Recorder</p>
+    <h1 class="app-title">Expenses</h1>
+    <p class="app-subtitle">
+        {% if ledger.count == 0 %}Nothing recorded yet{% else %}{{ ledger.count }} recorded in total{% endif %}
+    </p>
+</header>
+<section class="summary">
+    <p class="summary-label">{{ ledger.month_label }}</p>
+    <p class="summary-amount">{{ ledger.month_total }}</p>
+    <p class="summary-meta">
+        {{ ledger.month_count }} expense{% if ledger.month_count != 1 %}s{% endif %} this month · {{ ledger.all_total }} all time
+    </p>
+    {% if !ledger.breakdown.is_empty() %}
+        <div class="bar" aria-hidden="true">
+            {% for item in ledger.breakdown %}
+                <span class="bar-seg tone-{{ item.tone }}"
+                      style="width: {{ item.percent }}%"></span>
+            {% endfor %}
+        </div>
+        <ul class="legend">
+            {% for item in ledger.breakdown %}
+                <li class="legend-item">
+                    <span class="legend-dot tone-{{ item.tone }}"></span>
+                    <span class="legend-label">{{ item.label }}</span>
+                    <span class="legend-value">{{ item.amount }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
+<div class="controls">
+    <label class="search">
+        <svg class="icon icon-sm" aria-hidden="true">
+            <use href="#i-search"></use>
+        </svg>
+        <input class="search-input"
+               type="search"
+               placeholder="Search description, type or amount"
+               enterkeyhint="search"
+               autocomplete="off"
+               autocapitalize="off"
+               spellcheck="false"
+               x-model="query">
+        <button type="button"
+                class="icon-btn icon-btn-sm"
+                aria-label="Clear search"
+                x-show="query"
+                x-cloak
+                @click="query = ''">
+            <svg class="icon icon-sm" aria-hidden="true">
+                <use href="#i-x"></use>
+            </svg>
+        </button>
+    </label>
+    <div class="chips" role="tablist">
+        <button type="button"
+                role="tab"
+                class="chip"
+                data-chip="all"
+                :class="{ 'is-active': filter === 'all' }"
+                @click="filter = 'all'">
+            All <span class="chip-count">{{ ledger.count }}</span>
+        </button>
+        {% for stat in ledger.stats %}
+            <button type="button"
+                    role="tab"
+                    class="chip"
+                    data-chip="{{ stat.key }}"
+                    :class="{ 'is-active': filter === '{{ stat.key }}' }"
+                    @click="filter = '{{ stat.key }}'">
+                {{ stat.label }} <span class="chip-count">{{ stat.count }}</span>
+            </button>
+        {% endfor %}
+    </div>
+</div>
+<main class="groups">
+    {% for group in ledger.groups %}
+        <section class="group" data-group>
+            <div class="group-header">
+                <span>{{ group.label }}</span>
+                <span class="group-count">{{ group.total }}</span>
+            </div>
+            <div class="group-card">
+                <div class="group-list">
+                    {% for expense in group.items %}
+                        {% call expense_row::render(expense) %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+        {% endfor %}
+        <div class="empty" x-show="visible === 0" x-cloak>
+            <span class="empty-icon">
+                <svg class="icon" aria-hidden="true">
+                    <use href="#i-inbox"></use>
+                </svg>
+            </span>
+            <p class="empty-title"
+               x-text="query || filter !== 'all' ? 'No matching expenses' : 'No expenses yet'"></p>
+            <p class="empty-text">Tap New expense to record your first one.</p>
+        </div>
+    </main>
+    <div class="backdrop"
+         x-show="selected"
+         x-cloak
+         @click="close()"
+         x-transition:enter="t-fade-active"
+         x-transition:enter-start="t-fade-from"
+         x-transition:enter-end="t-fade-to"
+         x-transition:leave="t-fade-active"
+         x-transition:leave-start="t-fade-to"
+         x-transition:leave-end="t-fade-from"></div>
+    {% for group in ledger.groups %}
+        {% for expense in group.items %}
+            {% call expense_sheet::render(expense) %}
+            {% endfor %}
+        {% endfor %}

@@ -1,0 +1,28 @@
+{% macro render(e) %}
+    <button type="button"
+            class="expense-row"
+            data-expense
+            data-category="{{ e.category }}"
+            data-search="{{ e.search_blob() }}"
+            @click="open('{{ e.id }}')">
+        <span class="tile tone-{{ e.tone() }}">
+            <svg class="icon" aria-hidden="true">
+                <use href="#{{ e.category_icon() }}"></use>
+            </svg>
+        </span>
+        <span class="row-main">
+            <span class="row-title">{{ e.description }}</span>
+            <span class="row-sub">{{ e.category_label() }}</span>
+        </span>
+        <span class="row-trail">
+            <span class="row-amount">{{ e.amount_text() }}</span>
+            {% if e.has_receipt() %}
+                <span class="row-receipt">
+                    <svg class="icon icon-sm" aria-hidden="true">
+                        <use href="#i-paperclip"></use>
+                    </svg>
+                </span>
+            {% endif %}
+        </span>
+    </button>
+{% endmacro %}

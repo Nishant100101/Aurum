@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport"
+              content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+        <meta name="theme-color" content="#09090b">
+        <meta name="app-build" content="{{ self.build() }}">
+        <title>Expense Recorder</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet"
+              href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+        <link rel="stylesheet" href='{{ self.asset("/assets/css/tokens.css") }}'>
+        <link rel="stylesheet" href='{{ self.asset("/assets/css/styles.css") }}'>
+        <link rel="stylesheet" href='{{ self.asset("/assets/css/expense.css") }}'>
+        <script defer src='{{ self.asset("/assets/js/htmx.min.js") }}'></script>
+        <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+        <script defer src='{{ self.asset("/assets/js/haptics.js") }}'></script>
+        <script defer src='{{ self.asset("/assets/js/telegram.js") }}'></script>
+        <script defer src='{{ self.asset("/assets/js/app.js") }}'></script>
+        <script defer src='{{ self.asset("/assets/js/alpine.min.js") }}'></script>
+    </head>
+    <body>
+        {% include "components/sprite.html" %}
+        <div class="app" x-data="expenseApp()" x-effect="apply()" x-cloak>
+            <div id="expense-region">{% include "components/region.html" %}</div>
+            <div class="dock"
+                 x-show="!locked"
+                 x-cloak
+                 x-transition:enter="t-fade-active"
+                 x-transition:enter-start="t-fade-from"
+                 x-transition:enter-end="t-fade-to"
+                 x-transition:leave="t-fade-active"
+                 x-transition:leave-start="t-fade-to"
+                 x-transition:leave-end="t-fade-from">
+                <div class="dock-inner">
+                    <button type="button" class="btn btn-primary" @click="startFlow()">
+                        <svg class="icon" aria-hidden="true">
+                            <use href="#i-plus"></use>
+                        </svg>
+                        New expense
+                    </button>
+                </div>
+            </div>
+            {% include "components/flow.html" %}
+            <div class="toast"
+                 role="status"
+                 aria-live="polite"
+                 x-show="toast.visible"
+                 x-cloak
+                 x-transition:enter="t-toast-active"
+                 x-transition:enter-start="t-toast-from"
+                 x-transition:enter-end="t-toast-to"
+                 x-transition:leave="t-toast-active"
+                 x-transition:leave-start="t-toast-to"
+                 x-transition:leave-end="t-toast-from">
+                <svg class="icon icon-sm" aria-hidden="true">
+                    <use href="#i-check"></use>
+                </svg>
+                <span x-text="toast.message"></span>
+            </div>
+        </div>
+    </body>
+</html>

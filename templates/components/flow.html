@@ -1,0 +1,282 @@
+<div class="flow"
+     x-show="flowOpen"
+     x-cloak
+     role="dialog"
+     aria-modal="true"
+     aria-label="New expense"
+     x-transition:enter="t-sheet-active"
+     x-transition:enter-start="t-sheet-from"
+     x-transition:enter-end="t-sheet-to"
+     x-transition:leave="t-sheet-active"
+     x-transition:leave-start="t-sheet-to"
+     x-transition:leave-end="t-sheet-from">
+    <form id="expense-form"
+          class="flow-form"
+          hx-post="/api/expenses"
+          hx-encoding="multipart/form-data"
+          hx-target="#expense-region"
+          hx-swap="innerHTML"
+          autocomplete="off">
+        <input type="hidden" name="category" :value="category">
+        <input type="hidden" name="date" :value="date">
+        <header class="flow-head">
+            <button type="button" class="icon-btn" aria-label="Back" @click="back()">
+                <svg class="icon" aria-hidden="true" x-show="step > 0">
+                    <use href="#i-chevron-left"></use>
+                </svg>
+                <svg class="icon" aria-hidden="true" x-show="step === 0">
+                    <use href="#i-x"></use>
+                </svg>
+            </button>
+            <div class="flow-progress">
+                <p class="flow-step" x-text="'Step ' + (step + 1) + ' of ' + total"></p>
+                <div class="track">
+                    <span class="track-fill" :style="'--progress:' + progress"></span>
+                </div>
+            </div>
+        </header>
+        <div class="flow-body" x-ref="flowBody">
+            <section x-show="step === 0"
+                     x-transition:enter="t-step-active"
+                     x-transition:enter-start="t-step-from"
+                     x-transition:enter-end="t-step-to">
+                <h2 class="flow-title">What type of expense?</h2>
+                <p class="flow-hint">Pick the category that fits best.</p>
+                <div class="option-list">
+                    {% for c in categories %}
+                        <button type="button"
+                                class="option-row"
+                                :class="{ 'is-selected': category === '{{ c.key }}' }"
+                                @click="pickCategory('{{ c.key }}', '{{ c.label }}', '{{ c.icon }}', '{{ c.tone }}')">
+                            <span class="tile tone-{{ c.tone }}">
+                                <svg class="icon" aria-hidden="true">
+                                    <use href="#{{ c.icon }}"></use>
+                                </svg>
+                            </span>
+                            <span class="option-label">{{ c.label }}</span>
+                            <svg class="icon icon-sm chevron" aria-hidden="true">
+                                <use href="#i-chevron"></use>
+                            </svg>
+                        </button>
+                    {% endfor %}
+                </div>
+            </section>
+            <section x-show="step === 1"
+                     x-cloak
+                     x-transition:enter="t-step-active"
+                     x-transition:enter-start="t-step-from"
+                     x-transition:enter-end="t-step-to">
+                <h2 class="flow-title">When was it?</h2>
+                <p class="flow-hint">Choose a recent date or pick another one.</p>
+                <div class="date-grid">
+                    <template x-for="d in dates" :key="d.value">
+                        <button type="button"
+                                class="date-chip"
+                                :class="{ 'is-selected': date === d.value && !otherDate }"
+                                @click="pickDate(d.value)">
+                            <span class="date-chip-main" x-text="d.label"></span>
+                            <span class="date-chip-sub" x-text="d.caption"></span>
+                        </button>
+                    </template>
+                    <button type="button"
+                            class="date-chip date-chip-other"
+                            :class="{ 'is-selected': otherDate }"
+                            @click="pickOther()">
+                        <svg class="icon" aria-hidden="true">
+                            <use href="#i-calendar"></use>
+                        </svg>
+                        Other date
+                    </button>
+                </div>
+                <div class="field" x-show="otherDate" x-cloak>
+                    <label class="field-label" for="other-date">Choose a date</label>
+                    <input id="other-date"
+                           class="field-input"
+                           type="date"
+                           :max="today"
+                           x-model="otherValue">
+                </div>
+            </section>
+            <section x-show="step === 2"
+                     x-cloak
+                     x-transition:enter="t-step-active"
+                     x-transition:enter-start="t-step-from"
+                     x-transition:enter-end="t-step-to">
+                <h2 class="flow-title">What did you buy?</h2>
+                <p class="flow-hint">A short description, for example Printer for Business.</p>
+                <div class="field">
+                    <label class="visually-hidden" for="description">Description</label>
+                    <input id="description"
+                           class="field-input"
+                           type="text"
+                           name="description"
+                           x-ref="description"
+                           x-model="description"
+                           maxlength="120"
+                           placeholder="e.g. Printer for Business"
+                           enterkeyhint="next"
+                           autocomplete="off"
+                           @keydown.enter.prevent="next()">
+                    <p class="field-count" x-text="description.length + ' / 120'"></p>
+                </div>
+            </section>
+            <section x-show="step === 3"
+                     x-cloak
+                     x-transition:enter="t-step-active"
+                     x-transition:enter-start="t-step-from"
+                     x-transition:enter-end="t-step-to">
+                <h2 class="flow-title">How much was it?</h2>
+                <p class="flow-hint">Total amount in GBP, for example 45.65.</p>
+                <div class="amount-field">
+                    <span class="amount-currency" aria-hidden="true">£</span>
+                    <label class="visually-hidden" for="amount">Amount in GBP</label>
+                    <input id="amount"
+                           class="amount-input"
+                           type="text"
+                           name="amount"
+                           x-ref="amount"
+                           x-model="amount"
+                           inputmode="decimal"
+                           placeholder="0.00"
+                           enterkeyhint="next"
+                           autocomplete="off"
+                           @input="cleanAmount()"
+                           @keydown.enter.prevent="next()">
+                </div>
+            </section>
+            <section x-show="step === 4"
+                     x-cloak
+                     x-transition:enter="t-step-active"
+                     x-transition:enter-start="t-step-from"
+                     x-transition:enter-end="t-step-to">
+                <h2 class="flow-title">Upload the receipt</h2>
+                <p class="flow-hint">A photo or a PDF, up to 10 MB.</p>
+                <input id="receipt"
+                       class="visually-hidden"
+                       type="file"
+                       name="receipt"
+                       accept="image/*,application/pdf"
+                       x-ref="receipt"
+                       @change="onReceipt($event)">
+                <label for="receipt" class="dropzone" x-show="!receiptName">
+                    <span class="dropzone-icon">
+                        <svg class="icon" aria-hidden="true">
+                            <use href="#i-upload"></use>
+                        </svg>
+                    </span>
+                    <span class="dropzone-title">Take a photo or choose a file</span>
+                    <span class="dropzone-text">JPG, PNG, HEIC or PDF</span>
+                </label>
+                <div class="receipt-card" x-show="receiptName" x-cloak>
+                    <img class="receipt-thumb"
+                         :src="receiptUrl"
+                         alt="Receipt preview"
+                         x-show="receiptIsImage">
+                    <div class="receipt-file" x-show="!receiptIsImage">
+                        <svg class="icon" aria-hidden="true">
+                            <use href="#i-file"></use>
+                        </svg>
+                    </div>
+                    <div class="receipt-meta">
+                        <p class="receipt-name" x-text="receiptName"></p>
+                        <p class="receipt-size" x-text="receiptSize"></p>
+                    </div>
+                    <button type="button"
+                            class="icon-btn"
+                            aria-label="Remove receipt"
+                            @click="clearReceipt()">
+                        <svg class="icon" aria-hidden="true">
+                            <use href="#i-x"></use>
+                        </svg>
+                    </button>
+                </div>
+            </section>
+            <section x-show="step === 5"
+                     x-cloak
+                     x-transition:enter="t-step-active"
+                     x-transition:enter-start="t-step-from"
+                     x-transition:enter-end="t-step-to">
+                <h2 class="flow-title">Review and save</h2>
+                <p class="flow-hint">Check everything looks right.</p>
+                <div class="review-hero">
+                    <span class="tile tile-lg" :class="'tone-' + categoryTone">
+                        <svg class="icon" aria-hidden="true">
+                            <use :href="'#' + categoryIcon"></use>
+                        </svg>
+                    </span>
+                    <p class="review-amount" x-text="amountText"></p>
+                    <p class="review-desc" x-text="description"></p>
+                </div>
+                <div class="info-list review-list">
+                    <button type="button" class="info-row info-row-action" @click="goTo(0)">
+                        <svg class="icon info-icon" aria-hidden="true">
+                            <use :href="'#' + categoryIcon"></use>
+                        </svg>
+                        <span class="info-text">
+                            <span class="info-label">Type</span>
+                            <span class="info-value" x-text="categoryLabel"></span>
+                        </span>
+                        <span class="edit-tag">Edit</span>
+                    </button>
+                    <button type="button" class="info-row info-row-action" @click="goTo(1)">
+                        <svg class="icon info-icon" aria-hidden="true">
+                            <use href="#i-calendar"></use>
+                        </svg>
+                        <span class="info-text">
+                            <span class="info-label">Date</span>
+                            <span class="info-value" x-text="dateText"></span>
+                        </span>
+                        <span class="edit-tag">Edit</span>
+                    </button>
+                    <button type="button" class="info-row info-row-action" @click="goTo(2)">
+                        <svg class="icon info-icon" aria-hidden="true">
+                            <use href="#i-pencil"></use>
+                        </svg>
+                        <span class="info-text">
+                            <span class="info-label">Description</span>
+                            <span class="info-value" x-text="description"></span>
+                        </span>
+                        <span class="edit-tag">Edit</span>
+                    </button>
+                    <button type="button" class="info-row info-row-action" @click="goTo(3)">
+                        <svg class="icon info-icon" aria-hidden="true">
+                            <use href="#i-card"></use>
+                        </svg>
+                        <span class="info-text">
+                            <span class="info-label">Amount</span>
+                            <span class="info-value info-value-mono" x-text="amountText"></span>
+                        </span>
+                        <span class="edit-tag">Edit</span>
+                    </button>
+                    <button type="button" class="info-row info-row-action" @click="goTo(4)">
+                        <svg class="icon info-icon" aria-hidden="true">
+                            <use href="#i-paperclip"></use>
+                        </svg>
+                        <span class="info-text">
+                            <span class="info-label">Receipt</span>
+                            <span class="info-value" x-text="receiptName"></span>
+                        </span>
+                        <span class="edit-tag">Edit</span>
+                    </button>
+                </div>
+            </section>
+        </div>
+        <footer class="flow-foot" x-show="showContinue || step === 5" x-cloak>
+            <button type="button"
+                    class="btn btn-primary"
+                    x-show="showContinue"
+                    :disabled="!canContinue"
+                    @click="next()">Continue</button>
+            <button type="submit"
+                    class="btn btn-primary"
+                    x-show="step === 5"
+                    x-cloak
+                    :disabled="!canSubmit">
+                <svg class="icon" aria-hidden="true">
+                    <use href="#i-check"></use>
+                </svg>
+                <span x-text="submitting ? 'Saving' : 'Save expense'"></span>
+            </button>
+        </footer>
+    </form>
+</div>

@@ -1,0 +1,158 @@
+{% macro render(e) %}
+    <div class="sheet"
+         data-sheet="{{ e.id }}"
+         role="dialog"
+         aria-modal="true"
+         aria-label="Expense details"
+         x-show="selected === '{{ e.id }}'"
+         x-cloak
+         x-transition:enter="t-sheet-active"
+         x-transition:enter-start="t-sheet-from"
+         x-transition:enter-end="t-sheet-to"
+         x-transition:leave="t-sheet-active"
+         x-transition:leave-start="t-sheet-to"
+         x-transition:leave-end="t-sheet-from">
+        <div class="sheet-handle"
+             @touchstart.passive="dragStart($event)"
+             @touchmove.passive="dragMove($event)"
+             @touchend="dragEnd($event)">
+            <div class="sheet-grabber"></div>
+            <div class="sheet-head">
+                <span class="tile tile-lg tone-{{ e.tone() }}">
+                    <svg class="icon" aria-hidden="true">
+                        <use href="#{{ e.category_icon() }}"></use>
+                    </svg>
+                </span>
+                <div class="sheet-head-main">
+                    <h2 class="sheet-title">{{ e.description }}</h2>
+                    <p class="sheet-sub">{{ e.amount_text() }} · {{ e.date_short() }}</p>
+                </div>
+                <button type="button" class="icon-btn" aria-label="Close" @click="close()">
+                    <svg class="icon" aria-hidden="true">
+                        <use href="#i-x"></use>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="sheet-body">
+            <section class="section">
+                <h3 class="section-title">Receipt</h3>
+                {% if e.has_receipt() %}
+                    {% if e.receipt_is_image() %}
+                        <a class="receipt-frame"
+                           href="{{ e.receipt_url() }}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           data-external>
+                            <img class="receipt-img"
+                                 src="{{ e.receipt_url() }}"
+                                 alt="Receipt for {{ e.description }}"
+                                 loading="lazy">
+                        </a>
+                    {% else %}
+                        <div class="info-list">
+                            <a class="info-row info-row-action"
+                               href="{{ e.receipt_url() }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               data-external>
+                                <svg class="icon info-icon" aria-hidden="true">
+                                    <use href="#i-file"></use>
+                                </svg>
+                                <div class="info-text">
+                                    <span class="info-label">Attachment</span>
+                                    <span class="info-value">Open PDF receipt</span>
+                                </div>
+                                <svg class="icon icon-sm chevron" aria-hidden="true">
+                                    <use href="#i-external"></use>
+                                </svg>
+                            </a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="callout callout-info">
+                        <svg class="icon" aria-hidden="true">
+                            <use href="#i-paperclip"></use>
+                        </svg>
+                        <div>
+                            <p class="callout-title">No receipt attached</p>
+                            <p class="callout-text">This record was saved without a receipt.</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </section>
+            <section class="section">
+                <h3 class="section-title">Details</h3>
+                <div class="info-list">
+                    <div class="info-row">
+                        <svg class="icon info-icon" aria-hidden="true">
+                            <use href="#i-pencil"></use>
+                        </svg>
+                        <div class="info-text">
+                            <span class="info-label">Description</span>
+                            <span class="info-value">{{ e.description }}</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <svg class="icon info-icon" aria-hidden="true">
+                            <use href="#{{ e.category_icon() }}"></use>
+                        </svg>
+                        <div class="info-text">
+                            <span class="info-label">Type</span>
+                            <span class="info-value">{{ e.category_label() }}</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <svg class="icon info-icon" aria-hidden="true">
+                            <use href="#i-calendar"></use>
+                        </svg>
+                        <div class="info-text">
+                            <span class="info-label">Date</span>
+                            <span class="info-value">{{ e.date_long() }}</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <svg class="icon info-icon" aria-hidden="true">
+                            <use href="#i-card"></use>
+                        </svg>
+                        <div class="info-text">
+                            <span class="info-label">Amount</span>
+                            <span class="info-value info-value-mono">{{ e.amount_text() }}</span>
+                        </div>
+                    </div>
+                    {% if !e.created_at.is_empty() %}
+                        <div class="info-row">
+                            <svg class="icon info-icon" aria-hidden="true">
+                                <use href="#i-clock"></use>
+                            </svg>
+                            <div class="info-text">
+                                <span class="info-label">Recorded</span>
+                                <span class="info-value">{{ e.recorded_text() }}</span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+            <div class="action-bar" x-data="{ confirming: false }">
+                <button type="button"
+                        class="btn btn-danger"
+                        x-show="!confirming"
+                        @click="confirming = true">
+                    <svg class="icon" aria-hidden="true">
+                        <use href="#i-trash"></use>
+                    </svg>
+                    Delete expense
+                </button>
+                <div class="action-bar-split" x-show="confirming" x-cloak>
+                    <button type="button" class="btn btn-default" @click="confirming = false">Cancel</button>
+                    <button type="button"
+                            class="btn btn-danger-solid"
+                            hx-post="/api/expenses/{{ e.id }}/delete"
+                            hx-target="#expense-region"
+                            hx-swap="innerHTML"
+                            @click="close()">Confirm delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endmacro %}
