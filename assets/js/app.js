@@ -42,6 +42,7 @@ document.addEventListener("alpine:init", () => {
         this.$nextTick(() => {
           this.reconcileFilter();
           this.apply();
+          this.localizeTimes();
         });
       });
       document.body.addEventListener("htmx:beforeRequest", (event) => {
@@ -74,7 +75,10 @@ document.addEventListener("alpine:init", () => {
         this.notify(event.detail && event.detail.message);
       });
 
-      this.$nextTick(() => this.openFromLink());
+      this.$nextTick(() => {
+        this.localizeTimes();
+        this.openFromLink();
+      });
     },
 
     get locked() {
@@ -181,6 +185,24 @@ document.addEventListener("alpine:init", () => {
         `[data-chip="${CSS.escape(this.filter)}"]`,
       );
       if (!chip) this.filter = "all";
+    },
+
+    localizeTimes() {
+      this.$root.querySelectorAll("time[data-local-time]").forEach((el) => {
+        const date = new Date(el.getAttribute("datetime"));
+        if (Number.isNaN(date.getTime())) return;
+        const day = date.toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+        const time = date.toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+        el.textContent = `${day}, ${time}`;
+      });
     },
 
     open(id) {

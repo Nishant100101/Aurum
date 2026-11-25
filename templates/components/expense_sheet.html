@@ -127,7 +127,7 @@
                             </svg>
                             <div class="info-text">
                                 <span class="info-label">Recorded</span>
-                                <span class="info-value">{{ e.recorded_text() }}</span>
+                                <time class="info-value" data-local-time datetime="{{ e.recorded_iso() }}">{{ e.recorded_text() }}</time>
                             </div>
                         </div>
                     {% endif %}

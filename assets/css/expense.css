@@ -714,3 +714,8 @@ button.info-row {
   opacity: 1;
   transform: translateX(0);
 }
+
+.search-input:focus-visible,
+.search .icon-btn:focus-visible {
+  box-shadow: none;
+}

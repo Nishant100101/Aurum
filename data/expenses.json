@@ -52,5 +52,23 @@
     "pence": 2300,
     "receipt": "exp_1795542411_0.png",
     "created_at": "2026-11-24 17:46:51"
+  },
+  {
+    "id": "exp_1795581706_0",
+    "category": "business-entertainment",
+    "date": "2026-11-25",
+    "description": "Printer",
+    "pence": 200,
+    "receipt": "exp_1795581706_0.png",
+    "created_at": "2026-11-25 04:41:46"
+  },
+  {
+    "id": "exp_1795582471_0",
+    "category": "business-entertainment",
+    "date": "2026-11-25",
+    "description": "Cello",
+    "pence": 50,
+    "receipt": "exp_1795582471_0.png",
+    "created_at": "2026-11-25 04:54:31"
   }
 ]

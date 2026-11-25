@@ -99,6 +99,7 @@ async fn main() {
         .route("/region", get(render_region))
         .route("/api/expenses", post(create_expense))
         .route("/api/expenses/:id/delete", post(delete_expense))
+        .route("/api/welcome", get(post_welcome))
         .nest_service("/assets", ServeDir::new("assets"))
         .nest_service("/receipts", ServeDir::new("data/receipts"))
         .layer(DefaultBodyLimit::max(15 * 1024 * 1024))
@@ -245,4 +246,12 @@ async fn delete_expense(State(state): State<Shared>, Path(id): Path<String>) -> 
     };
 
     region_response(message, &list)
+}
+
+async fn post_welcome() -> impl IntoResponse {
+    if telegram::send_welcome().await {
+        "Welcome message sent to the group"
+    } else {
+        "Could not send. Check the terminal for the error."
+    }
 }

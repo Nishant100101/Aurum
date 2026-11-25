@@ -90,6 +90,13 @@ impl Expense {
         let hhmm = time.get(..5).unwrap_or(time);
         format!("{} {} {}, {}", d, MONTHS_SHORT[(m - 1) as usize], y, hhmm)
     }
+
+    pub fn recorded_iso(&self) -> String {
+        match self.created_at.split_once(' ') {
+            Some((date, time)) => format!("{}T{}Z", date, time),
+            None => String::new(),
+        }
+    }
     
     pub fn has_receipt(&self) -> bool {
         !self.receipt.is_empty()
