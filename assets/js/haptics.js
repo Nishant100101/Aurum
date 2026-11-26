@@ -16,9 +16,9 @@
   const TAP_MAP = [
     [".btn-danger, .btn-danger-solid", "warning"],
     [".btn", "medium"],
-    [".chip, .date-chip", "selection"],
+    [".chip, .date-chip, .cal-day", "selection"],
     [
-      ".option-row, .expense-row, .icon-btn, .backdrop, .info-row-action, .dropzone",
+      ".option-row, .expense-row, .icon-btn, .backdrop, .info-row-action, .dropzone, .currency-trigger, .currency-option",
       "light",
     ],
   ];

@@ -19,6 +19,7 @@
           autocomplete="off">
         <input type="hidden" name="category" :value="category">
         <input type="hidden" name="date" :value="date">
+        <input type="hidden" name="currency" :value="currencyCode">
         <header class="flow-head">
             <button type="button" class="icon-btn" aria-label="Back" @click="back()">
                 <svg class="icon" aria-hidden="true" x-show="step > 0">
@@ -67,7 +68,7 @@
                      x-transition:enter-start="t-step-from"
                      x-transition:enter-end="t-step-to">
                 <h2 class="flow-title">When was it?</h2>
-                <p class="flow-hint">Choose a recent date or pick another one.</p>
+                <p class="flow-hint">Today is selected. Pick another day if needed.</p>
                 <div class="date-grid">
                     <template x-for="d in dates" :key="d.value">
                         <button type="button"
@@ -88,13 +89,46 @@
                         Other date
                     </button>
                 </div>
-                <div class="field" x-show="otherDate" x-cloak>
-                    <label class="field-label" for="other-date">Choose a date</label>
-                    <input id="other-date"
-                           class="field-input"
-                           type="date"
-                           :max="today"
-                           x-model="otherValue">
+                <div class="calendar"
+                     x-show="otherDate"
+                     x-cloak
+                     x-transition:enter="t-menu-active"
+                     x-transition:enter-start="t-menu-from"
+                     x-transition:enter-end="t-menu-to">
+                    <div class="cal-head">
+                        <button type="button"
+                                class="icon-btn"
+                                aria-label="Previous month"
+                                :disabled="!canPrevMonth"
+                                @click="prevMonth()">
+                            <svg class="icon" aria-hidden="true">
+                                <use href="#i-chevron-left"></use>
+                            </svg>
+                        </button>
+                        <p class="cal-title" x-text="calendarTitle"></p>
+                        <button type="button"
+                                class="icon-btn"
+                                aria-label="Next month"
+                                :disabled="!canNextMonth"
+                                @click="nextMonth()">
+                            <svg class="icon" aria-hidden="true">
+                                <use href="#i-chevron"></use>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="cal-weekdays" aria-hidden="true">
+                        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                    </div>
+                    <div class="cal-grid">
+                        <template x-for="c in calendarCells" :key="c.key">
+                            <button type="button"
+                                    class="cal-day"
+                                    :class="{ 'is-blank': c.blank, 'is-today': c.today, 'is-selected': c.value === date }"
+                                    :disabled="c.blank || c.future"
+                                    x-text="c.blank ? '' : c.day"
+                                    @click="pickCalendarDay(c.value)"></button>
+                        </template>
+                    </div>
                 </div>
             </section>
             <section x-show="step === 2"
@@ -126,10 +160,95 @@
                      x-transition:enter-start="t-step-from"
                      x-transition:enter-end="t-step-to">
                 <h2 class="flow-title">How much was it?</h2>
-                <p class="flow-hint">Total amount in GBP, for example 45.65.</p>
+                <p class="flow-hint">Choose the currency, then enter the total.</p>
+                <div class="currency" @click.outside="currencyOpen = false">
+                    <button type="button"
+                            class="currency-trigger"
+                            aria-haspopup="listbox"
+                            :aria-expanded="currencyOpen"
+                            @click="toggleCurrency()">
+                        <span class="currency-symbol" x-text="currencyGlyph"></span>
+                        <span class="currency-text">
+                            <span class="currency-label">Currency</span>
+                            <span class="currency-value" x-text="currencyLabel"></span>
+                        </span>
+                        <svg class="icon icon-sm chevron currency-chevron"
+                             :class="{ 'is-open': currencyOpen }"
+                             aria-hidden="true">
+                            <use href="#i-chevron-down"></use>
+                        </svg>
+                    </button>
+                    <div class="currency-menu"
+                         role="listbox"
+                         x-show="currencyOpen"
+                         x-cloak
+                         x-transition:enter="t-menu-active"
+                         x-transition:enter-start="t-menu-from"
+                         x-transition:enter-end="t-menu-to"
+                         x-transition:leave="t-menu-active"
+                         x-transition:leave-start="t-menu-to"
+                         x-transition:leave-end="t-menu-from">
+                        {% for c in currencies %}
+                            <button type="button"
+                                    class="currency-option"
+                                    role="option"
+                                    :class="{ 'is-selected': currencyCode === '{{ c.code }}' && !currencyOther }"
+                                    @click="pickCurrency('{{ c.code }}', '{{ c.symbol }}', '{{ c.name }}')">
+                                <span class="currency-symbol">{{ c.symbol }}</span>
+                                <span class="currency-option-text">
+                                    <span class="currency-option-code">{{ c.code }}</span>
+                                    <span class="currency-option-name">{{ c.name }}</span>
+                                </span>
+                                <svg class="icon icon-sm currency-check"
+                                     aria-hidden="true"
+                                     x-show="currencyCode === '{{ c.code }}' && !currencyOther">
+                                    <use href="#i-check"></use>
+                                </svg>
+                            </button>
+                        {% endfor %}
+                        <button type="button"
+                                class="currency-option"
+                                role="option"
+                                :class="{ 'is-selected': currencyOther }"
+                                @click="pickOtherCurrency()">
+                            <span class="currency-symbol">
+                                <svg class="icon icon-sm" aria-hidden="true">
+                                    <use href="#i-plus"></use>
+                                </svg>
+                            </span>
+                            <span class="currency-option-text">
+                                <span class="currency-option-code">Other</span>
+                                <span class="currency-option-name">Enter a 3-letter currency code</span>
+                            </span>
+                            <svg class="icon icon-sm currency-check"
+                                 aria-hidden="true"
+                                 x-show="currencyOther">
+                                <use href="#i-check"></use>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="field" x-show="currencyOther" x-cloak>
+                    <label class="field-label" for="other-currency">Currency code</label>
+                    <input id="other-currency"
+                           class="field-input field-input-code"
+                           type="text"
+                           x-ref="otherCurrency"
+                           x-model="otherCode"
+                           maxlength="3"
+                           placeholder="e.g. CAD"
+                           autocapitalize="characters"
+                           autocomplete="off"
+                           spellcheck="false"
+                           enterkeyhint="next"
+                           @input="cleanOtherCode()">
+                </div>
                 <div class="amount-field">
-                    <span class="amount-currency" aria-hidden="true">£</span>
-                    <label class="visually-hidden" for="amount">Amount in GBP</label>
+                    <span class="amount-currency"
+                          :class="{ 'is-code': currencySymbol.length > 1 }"
+                          aria-hidden="true"
+                          x-text="currencySymbol"></span>
+                    <label class="visually-hidden" for="amount">Amount</label>
                     <input id="amount"
                            class="amount-input"
                            type="text"

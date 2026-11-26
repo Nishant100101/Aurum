@@ -20,6 +20,21 @@ pub static CATEGORIES: [Category; 8] = [
     Category { key: "travel-subsistence", label: "Travel & Subsistence", icon: "i-plane", tone: "sky" },
 ];
 
+#[derive(Debug, Clone, Copy)]
+pub struct Currency {
+    pub code: &'static str,
+    pub symbol: &'static str,
+    pub name: &'static str,
+}
+
+pub static CURRENCIES: [Currency; 5] = [
+    Currency { code: "GBP", symbol: "£", name: "British Pound" },
+    Currency { code: "USD", symbol: "$", name: "US Dollar" },
+    Currency { code: "EUR", symbol: "€", name: "Euro" },
+    Currency { code: "INR", symbol: "₹", name: "Indian Rupee" },
+    Currency { code: "AED", symbol: "AED", name: "UAE Dirham" },
+];
+
 pub fn category(key: &str) -> Option<&'static Category> {
     CATEGORIES.iter().find(|c| c.key == key)
 }
@@ -35,6 +50,10 @@ const MONTHS_LONG: [&str; 12] = [
 
 const WEEKDAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+fn default_currency() -> String {
+    "GBP".to_string()
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Expense {
     pub id: String,
@@ -42,6 +61,8 @@ pub struct Expense {
     pub date: String,
     pub description: String,
     pub pence: i64,
+    #[serde(default = "default_currency")]
+    pub currency: String,
     #[serde(default)]
     pub receipt: String,
     #[serde(default)]
@@ -66,7 +87,7 @@ impl Expense {
     }
 
     pub fn amount_text(&self) -> String {
-        money(self.pence)
+        money(self.pence, &self.currency)
     }
 
     pub fn date_short(&self) -> String {
@@ -97,7 +118,7 @@ impl Expense {
             None => String::new(),
         }
     }
-    
+
     pub fn has_receipt(&self) -> bool {
         !self.receipt.is_empty()
     }
@@ -112,11 +133,12 @@ impl Expense {
 
     pub fn search_blob(&self) -> String {
         format!(
-            "{} {} {} {}",
+            "{} {} {} {} {}",
             self.description,
             self.category_label(),
             self.amount_text(),
-            self.date_short()
+            self.date_short(),
+            self.currency
         )
         .to_lowercase()
     }
@@ -126,7 +148,6 @@ pub struct DayGroup {
     pub date: String,
     pub label: String,
     pub total: String,
-    pub pence: i64,
     pub items: Vec<Expense>,
 }
 
@@ -148,10 +169,46 @@ pub struct Ledger {
     pub count: usize,
     pub month_label: String,
     pub month_total: String,
+    pub month_extra: String,
+    pub primary_code: String,
     pub month_count: usize,
     pub all_total: String,
     pub stats: Vec<CategoryStat>,
     pub breakdown: Vec<BreakdownItem>,
+}
+
+fn currency_rank(code: &str) -> usize {
+    CURRENCIES
+        .iter()
+        .position(|c| c.code == code)
+        .unwrap_or(CURRENCIES.len())
+}
+
+fn totals_by_currency<'a>(items: impl Iterator<Item = &'a Expense>) -> Vec<(String, i64)> {
+    let mut totals: Vec<(String, i64)> = Vec::new();
+    for expense in items {
+        match totals.iter_mut().find(|(code, _)| *code == expense.currency) {
+            Some(entry) => entry.1 += expense.pence,
+            None => totals.push((expense.currency.clone(), expense.pence)),
+        }
+    }
+    totals.sort_by(|a, b| {
+        currency_rank(&a.0)
+            .cmp(&currency_rank(&b.0))
+            .then_with(|| a.0.cmp(&b.0))
+    });
+    totals
+}
+
+fn join_totals(totals: &[(String, i64)]) -> String {
+    if totals.is_empty() {
+        return money(0, "GBP");
+    }
+    totals
+        .iter()
+        .map(|(code, sum)| money(*sum, code))
+        .collect::<Vec<_>>()
+        .join(" · ")
 }
 
 impl Ledger {
@@ -173,33 +230,35 @@ impl Ledger {
         for expense in sorted {
             let same = groups.last().is_some_and(|g| g.date == expense.date);
             if same {
-                let group = groups.last_mut().unwrap();
-                group.pence += expense.pence;
-                group.items.push(expense);
+                groups.last_mut().unwrap().items.push(expense);
             } else {
                 groups.push(DayGroup {
                     date: expense.date.clone(),
                     label: long_date(&expense.date),
                     total: String::new(),
-                    pence: expense.pence,
                     items: vec![expense],
                 });
             }
         }
         for group in groups.iter_mut() {
-            group.total = money(group.pence);
+            group.total = join_totals(&totals_by_currency(group.items.iter()));
         }
 
-        let all_pence: i64 = expenses.iter().map(|e| e.pence).sum();
-        let month_pence: i64 = expenses
+        let month_items: Vec<&Expense> = expenses
             .iter()
             .filter(|e| e.date.starts_with(&month_prefix))
-            .map(|e| e.pence)
-            .sum();
-        let month_count = expenses
+            .collect();
+        let month_totals = totals_by_currency(month_items.iter().copied());
+        let (primary_code, primary_pence) = month_totals
+            .first()
+            .cloned()
+            .unwrap_or_else(|| ("GBP".to_string(), 0));
+        let month_extra = month_totals
             .iter()
-            .filter(|e| e.date.starts_with(&month_prefix))
-            .count();
+            .skip(1)
+            .map(|(code, sum)| money(*sum, code))
+            .collect::<Vec<_>>()
+            .join(" · ");
 
         let mut stats = Vec::new();
         for cat in CATEGORIES.iter() {
@@ -215,9 +274,9 @@ impl Ledger {
 
         let mut totals: Vec<(&'static Category, i64)> = Vec::new();
         for cat in CATEGORIES.iter() {
-            let sum: i64 = expenses
+            let sum: i64 = month_items
                 .iter()
-                .filter(|e| e.category == cat.key && e.date.starts_with(&month_prefix))
+                .filter(|e| e.category == cat.key && e.currency == primary_code)
                 .map(|e| e.pence)
                 .sum();
             if sum > 0 {
@@ -232,8 +291,8 @@ impl Ledger {
             .map(|(cat, sum)| BreakdownItem {
                 label: cat.label,
                 tone: cat.tone,
-                percent: (((sum * 100) / month_pence.max(1)) as u32).max(2),
-                amount: money(sum),
+                percent: (((sum * 100) / primary_pence.max(1)) as u32).max(2),
+                amount: money(sum, &primary_code),
             })
             .collect();
 
@@ -241,16 +300,35 @@ impl Ledger {
             groups,
             count: expenses.len(),
             month_label,
-            month_total: money(month_pence),
-            month_count,
-            all_total: money(all_pence),
+            month_total: money(primary_pence, &primary_code),
+            month_extra,
+            primary_code,
+            month_count: month_items.len(),
+            all_total: join_totals(&totals_by_currency(expenses.iter())),
             stats,
             breakdown,
         }
     }
 }
 
-pub fn money(pence: i64) -> String {
+fn currency_symbol(code: &str) -> String {
+    CURRENCIES
+        .iter()
+        .find(|c| c.code == code)
+        .map(|c| c.symbol.to_string())
+        .unwrap_or_else(|| code.to_string())
+}
+
+pub fn normalize_currency(input: &str) -> Option<String> {
+    let code = input.trim().to_ascii_uppercase();
+    if code.len() == 3 && code.chars().all(|c| c.is_ascii_alphabetic()) {
+        Some(code)
+    } else {
+        None
+    }
+}
+
+pub fn money(pence: i64, currency: &str) -> String {
     let pounds = (pence / 100).to_string();
     let rest = pence % 100;
     let mut grouped = String::new();
@@ -260,7 +338,13 @@ pub fn money(pence: i64) -> String {
         }
         grouped.push(ch);
     }
-    format!("£{}.{:02}", grouped, rest)
+    let number = format!("{}.{:02}", grouped, rest);
+    let symbol = currency_symbol(currency);
+    if symbol.chars().all(|c| c.is_ascii_alphabetic()) {
+        format!("{} {}", symbol, number)
+    } else {
+        format!("{}{}", symbol, number)
+    }
 }
 
 pub fn parse_pence(input: &str) -> Option<i64> {

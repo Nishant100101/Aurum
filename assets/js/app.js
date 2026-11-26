@@ -16,13 +16,20 @@ document.addEventListener("alpine:init", () => {
     submitting: false,
     today: "",
     dates: [],
+    calYear: 0,
+    calMonth: 0,
     category: "",
     categoryLabel: "",
     categoryIcon: "i-briefcase",
     categoryTone: "secondary",
     date: "",
     otherDate: false,
-    otherValue: "",
+    currencyCode: "GBP",
+    currencySymbol: "£",
+    currencyName: "British Pound",
+    currencyOpen: false,
+    currencyOther: false,
+    otherCode: "",
     description: "",
     amount: "",
     receiptName: "",
@@ -34,9 +41,6 @@ document.addEventListener("alpine:init", () => {
       this.refreshDates();
       this.$watch("selected", () => this.syncLock());
       this.$watch("flowOpen", () => this.syncLock());
-      this.$watch("otherValue", (value) => {
-        if (this.otherDate) this.date = value;
-      });
 
       document.body.addEventListener("htmx:afterSettle", () => {
         this.$nextTick(() => {
@@ -103,6 +107,10 @@ document.addEventListener("alpine:init", () => {
       );
     },
 
+    get currencyValid() {
+      return /^[A-Z]{3}$/.test(this.currencyCode);
+    },
+
     get canContinue() {
       switch (this.step) {
         case 0:
@@ -112,7 +120,7 @@ document.addEventListener("alpine:init", () => {
         case 2:
           return this.descriptionValid;
         case 3:
-          return this.amountValid;
+          return this.amountValid && this.currencyValid;
         case 4:
           return Boolean(this.receiptName);
         default:
@@ -121,12 +129,7 @@ document.addEventListener("alpine:init", () => {
     },
 
     get showContinue() {
-      return (
-        this.step === 2 ||
-        this.step === 3 ||
-        this.step === 4 ||
-        (this.step === 1 && this.otherDate)
-      );
+      return this.step >= 1 && this.step <= 4;
     },
 
     get canSubmit() {
@@ -137,16 +140,86 @@ document.addEventListener("alpine:init", () => {
         this.dateValid &&
         this.descriptionValid &&
         this.amountValid &&
+        this.currencyValid &&
         Boolean(this.receiptName)
       );
     },
 
+    get currencyGlyph() {
+      return this.currencySymbol || "¤";
+    },
+
+    get currencyLabel() {
+      if (this.currencyOther) {
+        return this.currencyCode
+          ? `${this.currencyCode} · Other currency`
+          : "Other currency";
+      }
+      return `${this.currencyCode} · ${this.currencyName}`;
+    },
+
     get amountText() {
-      return "£" + Number(this.amount || 0).toFixed(2);
+      const number = Number(this.amount || 0).toLocaleString("en-GB", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      const symbol = this.currencySymbol || this.currencyCode;
+      return /^[A-Za-z]+$/.test(symbol)
+        ? `${symbol} ${number}`
+        : `${symbol}${number}`;
     },
 
     get dateText() {
       return this.formatDate(this.date);
+    },
+
+    get monthIndex() {
+      return this.calYear * 12 + this.calMonth;
+    },
+
+    get todayIndex() {
+      const now = this.today ? this.parseIso(this.today) : new Date();
+      return now.getFullYear() * 12 + now.getMonth();
+    },
+
+    get canNextMonth() {
+      return this.monthIndex < this.todayIndex;
+    },
+
+    get canPrevMonth() {
+      return this.todayIndex - this.monthIndex < 36;
+    },
+
+    get calendarTitle() {
+      return new Date(this.calYear, this.calMonth, 1).toLocaleDateString(
+        "en-GB",
+        {
+          month: "long",
+          year: "numeric",
+        },
+      );
+    },
+
+    get calendarCells() {
+      const first = new Date(this.calYear, this.calMonth, 1);
+      const offset = (first.getDay() + 6) % 7;
+      const count = new Date(this.calYear, this.calMonth + 1, 0).getDate();
+      const cells = [];
+      for (let i = 0; i < offset; i += 1) {
+        cells.push({ key: `blank-${i}`, blank: true });
+      }
+      for (let day = 1; day <= count; day += 1) {
+        const value = this.iso(new Date(this.calYear, this.calMonth, day));
+        cells.push({
+          key: value,
+          blank: false,
+          day,
+          value,
+          future: value > this.today,
+          today: value === this.today,
+        });
+      }
+      return cells;
     },
 
     isAction(event) {
@@ -247,16 +320,21 @@ document.addEventListener("alpine:init", () => {
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
     },
 
+    parseIso(value) {
+      const [y, m, d] = value.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    },
+
     refreshDates() {
       const now = new Date();
       const list = [];
-      for (let i = 0; i < 10; i += 1) {
+      for (let i = 0; i < 5; i += 1) {
         const day = new Date(
           now.getFullYear(),
           now.getMonth(),
           now.getDate() - i,
         );
-        let caption = day.toLocaleDateString("en-GB", { weekday: "short" });
+        let caption = day.toLocaleDateString("en-GB", { weekday: "long" });
         if (i === 0) caption = "Today";
         if (i === 1) caption = "Yesterday";
         list.push({
@@ -274,8 +352,7 @@ document.addEventListener("alpine:init", () => {
 
     formatDate(value) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
-      const [y, m, d] = value.split("-").map(Number);
-      return new Date(y, m - 1, d).toLocaleDateString("en-GB", {
+      return this.parseIso(value).toLocaleDateString("en-GB", {
         weekday: "short",
         day: "numeric",
         month: "short",
@@ -289,9 +366,44 @@ document.addEventListener("alpine:init", () => {
       return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     },
 
+    showMonthOf(value) {
+      const base = /^\d{4}-\d{2}-\d{2}$/.test(value)
+        ? this.parseIso(value)
+        : new Date();
+      this.calYear = base.getFullYear();
+      this.calMonth = base.getMonth();
+    },
+
+    syncDateView() {
+      const inList = this.dates.some((d) => d.value === this.date);
+      this.otherDate = Boolean(this.date) && !inList;
+      this.showMonthOf(this.date || this.today);
+    },
+
+    prevMonth() {
+      if (!this.canPrevMonth) return;
+      if (this.calMonth === 0) {
+        this.calMonth = 11;
+        this.calYear -= 1;
+      } else {
+        this.calMonth -= 1;
+      }
+    },
+
+    nextMonth() {
+      if (!this.canNextMonth) return;
+      if (this.calMonth === 11) {
+        this.calMonth = 0;
+        this.calYear += 1;
+      } else {
+        this.calMonth += 1;
+      }
+    },
+
     startFlow() {
       this.resetFlow();
       this.refreshDates();
+      this.date = this.today;
       this.flowOpen = true;
     },
 
@@ -314,7 +426,12 @@ document.addEventListener("alpine:init", () => {
       this.categoryTone = "secondary";
       this.date = "";
       this.otherDate = false;
-      this.otherValue = "";
+      this.currencyCode = "GBP";
+      this.currencySymbol = "£";
+      this.currencyName = "British Pound";
+      this.currencyOpen = false;
+      this.currencyOther = false;
+      this.otherCode = "";
       this.description = "";
       this.amount = "";
       this.clearReceipt();
@@ -322,6 +439,8 @@ document.addEventListener("alpine:init", () => {
 
     go(step) {
       this.step = step;
+      if (step === 1) this.syncDateView();
+      this.currencyOpen = false;
       this.$nextTick(() => {
         if (this.$refs.flowBody) this.$refs.flowBody.scrollTop = 0;
         const target =
@@ -386,7 +505,50 @@ document.addEventListener("alpine:init", () => {
 
     pickOther() {
       this.otherDate = true;
-      this.date = this.otherValue;
+      this.showMonthOf(this.date || this.today);
+    },
+
+    pickCalendarDay(value) {
+      if (!value || value > this.today) return;
+      this.date = value;
+    },
+
+    toggleCurrency() {
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+      this.currencyOpen = !this.currencyOpen;
+    },
+
+    pickCurrency(code, symbol, name) {
+      this.currencyCode = code;
+      this.currencySymbol = symbol;
+      this.currencyName = name;
+      this.currencyOther = false;
+      this.otherCode = "";
+      this.currencyOpen = false;
+      this.$nextTick(() => {
+        if (this.$refs.amount) this.$refs.amount.focus();
+      });
+    },
+
+    pickOtherCurrency() {
+      this.currencyOther = true;
+      this.currencyOpen = false;
+      this.cleanOtherCode();
+      this.$nextTick(() => {
+        if (this.$refs.otherCurrency) this.$refs.otherCurrency.focus();
+      });
+    },
+
+    cleanOtherCode() {
+      this.otherCode = this.otherCode
+        .toUpperCase()
+        .replace(/[^A-Z]/g, "")
+        .slice(0, 3);
+      this.currencyCode = this.otherCode;
+      this.currencySymbol = this.otherCode;
+      this.currencyName = "Other currency";
     },
 
     cleanAmount() {

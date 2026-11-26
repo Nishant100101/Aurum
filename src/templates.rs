@@ -1,5 +1,5 @@
 use crate::assets;
-use crate::models::{Category, Ledger};
+use crate::models::{Category, Currency, Ledger};
 use askama::Template;
 
 #[derive(Template)]
@@ -7,6 +7,7 @@ use askama::Template;
 pub struct AppTemplate {
     pub ledger: Ledger,
     pub categories: &'static [Category],
+    pub currencies: &'static [Currency],
 }
 
 impl AppTemplate {

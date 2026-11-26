@@ -1,3 +1,7 @@
+mod assets;
+mod models;
+mod telegram;
+mod templates;
 use axum::{
     extract::{DefaultBodyLimit, Multipart, Path, State},
     http::StatusCode,
@@ -9,13 +13,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::fs;
 use tower_http::services::ServeDir;
-
-mod assets;
-mod models;
-mod telegram;
-mod templates;
-
-use crate::models::{now_secs, now_stamp, Expense, Ledger, CATEGORIES};
+use crate::models::{now_secs, now_stamp, Expense, Ledger, CATEGORIES, CURRENCIES};
 use crate::templates::{AppTemplate, RegionTemplate};
 
 struct AppState {
@@ -119,6 +117,7 @@ async fn render_app(State(state): State<Shared>) -> impl IntoResponse {
     AppTemplate {
         ledger: Ledger::from_expenses(&snapshot(&state)),
         categories: &CATEGORIES,
+        currencies: &CURRENCIES,
     }
 }
 
@@ -133,6 +132,7 @@ async fn create_expense(State(state): State<Shared>, mut multipart: Multipart) -
     let mut date = String::new();
     let mut description = String::new();
     let mut amount = String::new();
+    let mut currency = String::new();
     let mut receipt: Option<(&'static str, Vec<u8>)> = None;
 
     loop {
@@ -147,6 +147,7 @@ async fn create_expense(State(state): State<Shared>, mut multipart: Multipart) -
             "date" => date = field.text().await.unwrap_or_default(),
             "description" => description = field.text().await.unwrap_or_default(),
             "amount" => amount = field.text().await.unwrap_or_default(),
+            "currency" => currency = field.text().await.unwrap_or_default(),
             "receipt" => {
                 let ext = receipt_extension(field.content_type().unwrap_or_default());
                 let bytes = match field.bytes().await {
@@ -172,6 +173,10 @@ async fn create_expense(State(state): State<Shared>, mut multipart: Multipart) -
     if description.is_empty() || description.chars().count() > 120 {
         return reject("Enter a short description.");
     }
+
+    let Some(currency) = models::normalize_currency(&currency) else {
+        return reject("Choose a valid currency.");
+    };
 
     let Some(pence) = models::parse_pence(&amount) else {
         return reject("Enter a valid amount.");
@@ -207,6 +212,7 @@ async fn create_expense(State(state): State<Shared>, mut multipart: Multipart) -
         date,
         description,
         pence,
+        currency,
         receipt: file_name,
         created_at: now_stamp(),
     };

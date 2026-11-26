@@ -10,9 +10,11 @@
 <section class="summary">
     <p class="summary-label">{{ ledger.month_label }}</p>
     <p class="summary-amount">{{ ledger.month_total }}</p>
-    <p class="summary-meta">
-        {{ ledger.month_count }} expense{% if ledger.month_count != 1 %}s{% endif %} this month · {{ ledger.all_total }} all time
-    </p>
+    {% if !ledger.month_extra.is_empty() %}
+        <p class="summary-extra">+ {{ ledger.month_extra }}</p>
+    {% endif %}
+    <p class="summary-meta">{{ ledger.month_count }} expense{% if ledger.month_count != 1 %}s{% endif %} this month</p>
+    <p class="summary-meta">All time {{ ledger.all_total }}</p>
     {% if !ledger.breakdown.is_empty() %}
         <div class="bar" aria-hidden="true">
             {% for item in ledger.breakdown %}
@@ -29,6 +31,9 @@
                 </li>
             {% endfor %}
         </ul>
+        {% if !ledger.month_extra.is_empty() %}
+            <p class="summary-note">Breakdown shown in {{ ledger.primary_code }}</p>
+        {% endif %}
     {% endif %}
 </section>
 <div class="controls">

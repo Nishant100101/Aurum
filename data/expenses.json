@@ -5,6 +5,7 @@
     "date": "2026-11-23",
     "description": "MS Office license",
     "pence": 799,
+    "currency": "GBP",
     "receipt": "",
     "created_at": "2026-11-23 13:29:00"
   },
@@ -14,6 +15,7 @@
     "date": "2026-11-23",
     "description": "A4 paper and toner",
     "pence": 4560,
+    "currency": "GBP",
     "receipt": "",
     "created_at": "2026-11-23 10:12:00"
   },
@@ -23,6 +25,7 @@
     "date": "2026-11-21",
     "description": "Client lunch, Leeds",
     "pence": 6845,
+    "currency": "GBP",
     "receipt": "",
     "created_at": "2026-11-21 14:05:00"
   },
@@ -32,6 +35,7 @@
     "date": "2026-11-20",
     "description": "Recorded delivery, signed contracts",
     "pence": 595,
+    "currency": "GBP",
     "receipt": "",
     "created_at": "2026-11-20 16:40:00"
   },
@@ -41,6 +45,7 @@
     "date": "2026-11-18",
     "description": "Office printer repair",
     "pence": 12000,
+    "currency": "GBP",
     "receipt": "",
     "created_at": "2026-11-18 09:30:00"
   },
@@ -50,6 +55,7 @@
     "date": "2026-11-20",
     "description": "Grocery",
     "pence": 2300,
+    "currency": "GBP",
     "receipt": "exp_1795542411_0.png",
     "created_at": "2026-11-24 17:46:51"
   },
@@ -59,6 +65,7 @@
     "date": "2026-11-25",
     "description": "Printer",
     "pence": 200,
+    "currency": "GBP",
     "receipt": "exp_1795581706_0.png",
     "created_at": "2026-11-25 04:41:46"
   },
@@ -68,7 +75,38 @@
     "date": "2026-11-25",
     "description": "Cello",
     "pence": 50,
+    "currency": "GBP",
     "receipt": "exp_1795582471_0.png",
     "created_at": "2026-11-25 04:54:31"
+  },
+  {
+    "id": "exp_1795665384_0",
+    "category": "business-entertainment",
+    "date": "2026-11-24",
+    "description": "CD",
+    "pence": 2800,
+    "currency": "GBP",
+    "receipt": "exp_1795665384_0.png",
+    "created_at": "2026-11-26 03:56:24"
+  },
+  {
+    "id": "exp_1795665430_1",
+    "category": "business-entertainment",
+    "date": "2026-11-23",
+    "description": "Dane",
+    "pence": 9800,
+    "currency": "EUR",
+    "receipt": "exp_1795665430_1.png",
+    "created_at": "2026-11-26 03:57:10"
+  },
+  {
+    "id": "exp_1795665498_2",
+    "category": "personal-entertainment",
+    "date": "2026-11-22",
+    "description": "Movie",
+    "pence": 400,
+    "currency": "USD",
+    "receipt": "exp_1795665498_2.png",
+    "created_at": "2026-11-26 03:58:19"
   }
 ]
